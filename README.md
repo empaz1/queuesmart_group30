@@ -1,20 +1,28 @@
+## Group #30 QueueSmart
+
+
 ### **Initial Thoughts**
 
-**We are using the website.**
 
+`We are designing a web application.`
 
- _Who are the main users of the website?_
-
- 
+### Main Users of the Website
 There will be 2 main users that will be using the website.
-One user will be the client/customer. Another user will be the administrators.
 
+* **Client/Customer:** They will be using the website seeking for services and be in queue
+* **Administrators:** They will act as staff or management operating the services
 
-_How will users and administrators interact with the application?_
+### User & Administrator Interactions
 
+#### Users
+* Log in to the website using email or phone number and a password.
+* Select what service they need, join the queue, and see their wait time
+* Receive live updates as their appointment time gets closer or is changed.
+#### Administrators
+* Manage the overall flow of the queue
+* Update or delete customers' wait time
+* Access usage analytics and data about operations
 
-The users/customers will need to log in to the website using email or phone number and a password. The user will then select what service they need, join the queue, and see their wait time. The user will receive notification updates as their appointment time gets closer or is changed. 
-Admin will be able to manage the queue, update or delete customers' wait time, and manage the flow of the queue.
 
 
 _Important Features_
