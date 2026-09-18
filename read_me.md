@@ -17,7 +17,7 @@ The users/customers will need to log in to the website using email or phone numb
 Admin will be able to manage the queue, update or delete customers' wait time, and manage the flow of the queue.
 
 
-Important Features:
+_Important Features_
 User dashboard - Includes existing queues, personal information, and entering a new queue.
 Entering a queue - This will ask for name and information as well as service options.
 Email/Phone Notifications - For updates and reminders about queue wait time, cancellations, and changes.
