@@ -30,7 +30,6 @@ Overflow - A huge problem could come if there are too many people in the queue, 
 
 
 ## Development Methodology
----
 
 Our team decided to use Scrum as the development methodology for QueueSmart. Scrum is an Agile framework that divides development into shorter stages called sprints, allowing us to work on different features gradually instead of trying to build the entire system at once.
 
