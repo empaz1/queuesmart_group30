@@ -1,7 +1,16 @@
-**Initial Thoughts**
+### **Initial Thoughts**
 
+**We are using the website.**
+
+
+ _Who are the main users of the website?_
+
+ 
 There will be 2 main users that will be using the website.
 One user will be the client/customer. Another user will be the administrators.
+
+The users/customers will need to log in to the website using email or phone number and a password. The user will then select what service they need, join the queue, and see their wait time. The user will receive notification updates as their appointment time gets closer or is changed. 
+Admin will be able to manage the queue, update or delete customers' wait time, and manage the flow of the queue.
 
 
 Important Features:
