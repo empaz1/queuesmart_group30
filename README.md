@@ -29,8 +29,8 @@ Notification delay/Undelivered - A queue update not being sent in time for the c
 Overflow - A huge problem could come if there are too many people in the queue, many cancellations/changes, or unexpected delays and could cause the website to be slow or crash overall.
 
 
-Development Methodology
-_ _ _
+## Development Methodology
+---
 
 Our team decided to use Scrum as the development methodology for QueueSmart. Scrum is an Agile framework that divides development into shorter stages called sprints, allowing us to work on different features gradually instead of trying to build the entire system at once.
 
