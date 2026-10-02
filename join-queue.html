@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Queue - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>QueueSmart</h1>
+    <nav>
+      <a href="join-queue.html">Join Queue</a>
+      <a href="queue-status.html">Queue Status</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Join a Queue</h2>
+    <p>Pick a service below & see the estimated wait time.</p>
+
+    <div id="service-list"></div>
+
+    <div id="wait-box">
+      <p>Estimated wait: <strong id="wait-time">Select a service</strong></p>
+    </div>
+
+    <div class="buttons">
+      <button id="join-btn">Join Queue</button>
+      <button id="leave-btn">Leave Queue</button>
+    </div>
+
+    <p id="message"></p>
+    <p><a href="queue-status.html" id="status-link">View my queue status &rarr;</a></p>
+  </main>
+
+  <script src="queue-data.js"></script>
+  <script src="join-queue.js"></script>
+</body>
+</html>
+

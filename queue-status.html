@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Queue Status - QueueSmart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>QueueSmart</h1>
+    <nav>
+      <a href="join-queue.html">Join Queue</a>
+      <a href="queue-status.html">Queue Status</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Queue Status</h2>
+
+    <!-- shown when the user hasn't joined anything -->
+    <div id="empty-state">
+      <p>You're not in a queue right now.</p>
+      <a href="join-queue.html">Join a queue</a>
+    </div>
+
+    <!-- shown when the user is in a queue -->
+    <div id="status-card">
+      <p>Service: <strong id="service-name"></strong></p>
+      <p>Position in line: <strong id="position"></strong></p>
+      <p>Estimated wait: <strong id="wait-time"></strong></p>
+      <p>Status: <span id="status-badge" class="badge">Waiting</span></p>
+
+      <h3>Updates</h3>
+      <ul id="updates"></ul>
+
+      <button id="leave-btn">Leave Queue</button>
+    </div>
+  </main>
+
+  <script src="queue-data.js"></script>
+  <script src="queue-status.js"></script>
+</body>
+</html>
+
