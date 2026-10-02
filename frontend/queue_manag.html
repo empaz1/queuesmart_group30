@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title> QueueSmart - Queue Management</title>
+    <link rel="stylesheet" href="queue_manag.css">
+</head>
+
+
+<body>
+    <nav class="navbar">
+        <h1>QueueSmart</h1>
+
+        <div class="nav_links">
+            <a href="service_manag.html">Service Management</a>
+            <a href="queue_manag.html">Queue Management</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <h1 class="page_title">Queue Management</h1>
+
+        <h2>Current Queues</h2>
+        <div class="queue_list" id="queue_list">
+        </div>
+
+        <p id="no_queue_message" style="display: none">
+            No current queues. Add a service to view its queue.
+        </p>
+
+        <div class="manage_modal" id="manage_modal">
+            <div class="modal_content">
+                <button id="close_modal_button">X</button>
+                <h2 id="modal_title">Manage Queue</h2>
+
+                <div id="queue_users">                    
+                </div>
+
+                <button id="serve_button">Serve Next</button>
+            </div>
+        </div>
+
+
+    </main>
+
+    <script src="queue_manag.js"></script>
+</body>
+</html>
