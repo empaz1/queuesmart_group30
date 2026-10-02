@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart-User Dashboard</title>
+  <link rel="stylesheet" href="user_dashboard.css">
+</head>
+<body>
+
+  <div class="navbar">
+    <div class="nav-brand">QueueSmart</div>
+    <div class="nav-menu">
+      <button class="nav-btn active" id="nav-dash" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-btn" id="nav-service" onclick="showPage('service')">Service Management</button>
+      <button class="nav-btn" id="nav-notif" onclick="showPage('notifications')">Notifications <span id="badge" class="badge">3</span></button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div id="page-dashboard">
+      <h1 class="Welcome">Welcome to QueueSmart!</h1>
+
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-current" onclick="changeQueueTab('current')">Current queues</button>
+        <button class="tab-btn" id="tab-canceled" onclick="changeQueueTab('canceled')">Canceled queues</button>
+        <button class="tab-btn" id="tab-history" onclick="changeQueueTab('history')">Queue history</button>
+      </div>
+
+      <div id="queue-list"></div>
+    </div>
+
+    <div id="page-notifications" class="hide">
+      <h1>Notifications</h1>
+      <div id="notif-list"></div>
+    </div>
+
+    <div id="page-service" class="hide">
+      <h1>Service Management</h1>
+      
+
+  </div>
+
+  <div id="queue-modal" class="modal-bg hide">
+    <div class="modal-box">
+      <h3 id="qm-title">Queue Option</h3>
+      <p id="qm-text">Would you like to continue waiting or leave this line?</p>
+      <div class="modal-buttons">
+        <button class="btn btn-outline" onclick="closeQueueModal()">Continue wait</button>
+        <button class="btn btn-red" onclick="cancelSelectedQueue()">Cancel queue</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="notif-modal" class="modal-bg hide">
+    <div class="modal-box">
+      <div class="modal-top">
+        <h3 id="nm-title">Notification</h3>
+        <button class="close-x" onclick="closeNotifModal()">X</button>
+      </div>
+      <p id="nm-msg"></p>
+      <div class="modal-actions-bar">
+        <div>
+          <button class="btn-delete" onclick="deleteNotif()">Delete</button>
+          <button class="btn btn-outline" onclick="markUnread()">Mark unread</button>
+        </div>
+        <button class="btn btn-gray" onclick="closeNotifModal()">Close(X)</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="user_dashboard.js"></script>
+</body>
+</html>
