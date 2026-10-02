@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title> QueueSmart - Service Management</title>
+    <link rel="stylesheet" href="service_manag.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <h1>QueueSmart</h1>
+
+        <div class="nav_links">
+            <a href="service_manag.html">Service Management</a>
+            <a href="queue_manag.html">Queue Management</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <h1 class="page_title">Service Management</h1>
+
+        <h2>Current Services</h2>
+
+        <div class="service_list" id="service_list">
+        </div>
+
+        <p id="no_services_message" style="display: none;">
+            No services currently available.
+        </p>
+
+        <button id="add_service_button">
+            + Add Service
+        </button>
+
+        <div id="service_form_container">
+            <h2 id="form_title"> Create Service</h2>
+            
+            <form id="service_form">
+                <label>Service Name:</label>
+                <input type="text" id="service_name" required maxlength="100">
+                
+                <label>Description:</label>
+                <textarea id="service_description" required></textarea>
+
+                <label>Duration: (minutes)</label>
+                <input type="number" id="service_duration" required min="1">
+
+                <label>Priority level: </label>
+                <select id="service_priority" required>
+                    <option value="">Select Priority</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                </select>
+
+
+                <div class="form_buttons">
+                    <button type="submit" id="submit_button"> Create Service</button>
+                    <button type="button" id="cancel_button">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+    </main>
+
+    
+
+    
+    <script src="service_manag.js"></script>
+</body>
+
+</html>
