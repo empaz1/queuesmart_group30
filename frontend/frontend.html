@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in</title>
+    <link rel="stylesheet" href="front_end.css">
+  </head>  
+<body>
+    <main class="login-card">
+        <section class="login-content" aria-labelledby="login-title">
+            <div id="login-view">
+                <h1 id="login-title">Welcome to QueueSmart</h1>
+                <p class="login-intro">Login or register to continue to your account.</p>
+                <form class="login-form" action="#" method="post">
+                    <div class="login-field">
+                        <label for="username">Email</label>
+                        <input id="username" name="username" type="text" autocomplete="username" placeholder="you@example.com" required>
+                    </div>
+                    <div class="login-field">
+                        <label for="password">Password</label>
+                        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+                    </div>
+                    <button class="login-submit" type="submit">Login</button>
+                </form>
+                <p class="register-prompt">
+                    Don't have an account?
+                    <button class="view-switch" type="button" data-view="register">Register here</button>
+                </p>
+            </div>
+
+            <div id="register-view" hidden>
+                <h1 id="register-title">Create your account</h1>
+                <p class="login-intro">Register to get started with QueueSmart.</p>
+                <form class="login-form" action="#" method="post">
+                    <div class="login-field">
+                        <label for="register-email">Email</label>
+                        <input id="register-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="login-field">
+                        <label for="register-password">Password</label>
+                        <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="Create a password" required>
+                    </div>
+                    <div class="login-field">
+                        <label for="confirm-password">Confirm password</label>
+                        <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" placeholder="Enter password again" required>
+                    </div>
+                    <button class="login-submit" type="submit">Create account</button>
+                </form>
+                <p class="register-prompt">
+                    Already have an account?
+                    <button class="view-switch" type="button" data-view="login">Sign in</button>
+                </p>
+            </div>
+        </section>
+    </main>
+    <script>
+        const loginView = document.getElementById("login-view");
+        const registerView = document.getElementById("register-view");
+
+        document.querySelectorAll("[data-view]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const showRegister = button.dataset.view === "register";
+                loginView.hidden = showRegister;
+                registerView.hidden = !showRegister;
+            });
+        });
+    </script>
+</body>
+</html>
