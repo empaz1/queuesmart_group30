@@ -8,6 +8,30 @@ const noServicesMessage = document.getElementById('no_services_message');
 
 let editingServiceCard = null;
 
+async function fetchServices(){
+    try{
+        const response = await fetch('/api/services');
+        if(!response.ok){
+            throw new Error('Failed to fetch services');
+        }
+
+        const serv = await response.json();
+
+        const serviceList = document.getElementById("service_list");
+        serviceList.innerHTML = "";
+
+        serv.forEach(services => {
+            createServiceCard(services);
+        });
+
+        updateNoServicesMessage();
+    }
+
+    
+    catch(error){
+        console.error('Error: ', error);
+    }
+}
 
 addServiceButton.addEventListener("click", function(){
     editingServiceCard = null;
@@ -35,6 +59,33 @@ function updateNoServicesMessage() {
     }
 }
 
+function createServiceCard(service) {
+    const serviceList = document.getElementById("service_list");
+    const serviceCard = document.createElement("div");
+    serviceCard.className = "service_card";
+    serviceCard.dataset.id = service.id;;
+
+    serviceCard.innerHTML = `
+        <h3>${service.name}</h3>
+        <p>${service.description}</p>
+        <p>Expected Duration: ${service.duration} minutes</p>
+        <p>Priority: ${service.priority}</p>
+        <button class="edit_button">Edit</button>
+        <button class="delete_button">Delete</button>
+    `;
+
+    cardEventListeners(
+        serviceCard,
+        service.name,
+        service.description,
+        service.duration,
+        service.priority
+    );
+
+    serviceList.appendChild(serviceCard);
+    updateNoServicesMessage();
+}
+
 function cardEventListeners(card, name, description, duration, priority){
     const editButton = card.querySelector(".edit_button");
     const deleteButton = card.querySelector(".delete_button");
@@ -52,62 +103,109 @@ function cardEventListeners(card, name, description, duration, priority){
         formContainer.style.display = "block";
     });
 
-    deleteButton.addEventListener("click", function(){
-        card.remove();
-        updateNoServicesMessage();
+    deleteButton.addEventListener("click", async function(){
+        const id = card.dataset.id;
+        try{
+            const response = await fetch(`/api/services/${id}`, {
+                method: "DELETE"
+            });
+
+            if(!response.ok){
+                throw new Error("Failed to delete");
+            }
+            await fetchServices();
+        }
+        catch(error){
+            console.error("Error deleting service: ", error);
+            alert("Unable to connect to the server");
+        }
+        
     });
 }
 
-form.addEventListener("submit", function(event){
+form.addEventListener("submit", async function(event){
     event.preventDefault();
     
     const name = document.getElementById("service_name").value;
     const description = document.getElementById("service_description").value;
-    const duration = document.getElementById("service_duration").value;
+    const duration = Number(document.getElementById("service_duration").value);
     const priority = document.getElementById("service_priority").value;
 
     if (editingServiceCard !== null){
-        editingServiceCard.innerHTML = `
-            <h3>${name}</h3>
-            <p>${description}</p>
-            <p> Expected Duration: ${duration} minutes</p>
-            <p> Priority: ${priority}</p>
-            <button class="edit_button">Edit</button>
-            <button class="delete_button">Delete</button>
-        `;
+        const serviceId = editingServiceCard.dataset.id;
 
-        cardEventListeners(editingServiceCard, name, description, duration, priority);
+        try {
+            const response = await fetch(`/api/services/${serviceId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name,
+                    description,
+                    duration,
+                    priority
+                })
+            });
 
-        editingServiceCard = null;
-        form.reset();
-        
-        formTitle.textContent = "Add Service";
-        submitButton.textContent = "Create Service";
-        formContainer.style.display = "none";
+            const result = await response.json();
+
+            if (!response.ok) {
+                alert(result.error || "Failed to update service");
+                return;
+            }
+
+            await fetchServices();
+
+            editingServiceCard = null;
+            form.reset();
+            formTitle.textContent = "Add Service";
+            submitButton.textContent = "Create Service";
+            formContainer.style.display = "none";
+            
+        }
+        catch (error) {
+            console.error("Unable to update service: ", error);
+            alert("Unable to connect to the server");
+        }
         return;
     }
-    console.log(name, description, duration, priority)
+    
+    
+    try {
+        const response = await fetch("/api/services", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name,
+                description,
+                duration,
+                priority
+            })
+        });
 
-    const serviceList = document.getElementById("service_list");
-    const serviceCard = document.createElement("div");
+        const result = await response.json();
 
-    serviceCard.className = "service_card";
-    serviceCard.innerHTML = `
-        <h3>${name}</h3>
-        <p>${description}</p>
-        <p> Expected Duration: ${duration} minutes</p>
-        <p> Priority: ${priority}</p>
-        <button class="edit_button">Edit</button>
-        <button class="delete_button">Delete</button>
-    `;
+        if (!response.ok) {
+            alert(result.error || "Failed to create service");
+            return;
+        }
 
-    cardEventListeners(serviceCard, name, description, duration, priority);
+        await fetchServices();
 
+        form.reset();
+        formContainer.style.display = "none";
 
-    serviceList.appendChild(serviceCard);
-    updateNoServicesMessage();
-    form.reset();
-    formContainer.style.display = "none";
+    } 
+
+    catch (error) {
+    console.error("Error creating service:", error);
+    alert("Unable to connect to the server");
+}
+
 });
 
 updateNoServicesMessage();
+fetchServices();
