@@ -126,7 +126,7 @@ button {
     margin-bottom: 10px;
 }
 
-.user_controls {
+.user_buttons {
     display: flex;
     gap: 6px;
 }
@@ -135,12 +135,12 @@ button {
 .up_button, .down_button {
     background-color: #e5e5e5;
     color: #1a1a1a;
-    padding: 7px, 12px;
+    padding: 7px 12px;
 }
 .remove_button {
     background-color: #1a1a1a;
     color: white;
-    padding: 7px, 12px;
+    padding: 7px 12px;
 }
 
 .queue_user span{
