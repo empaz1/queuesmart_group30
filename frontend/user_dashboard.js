@@ -1,24 +1,87 @@
-var currentQueues = [
-  { service: "Academic Advising", wait: "8 mins", date: "Oct 2, 2026 - 9:15 AM" },
-];
+const API_BASE = "http://localhost:3000/api";
+const CURRENT_USER_ID = "u1";
 
-var canceledQueues = [
-  { service: "IT Student Helpdesk", started: "Oct 1, 2026 - 1:10 PM", canceled: "Oct 1, 2026 - 1:18 PM" },
-];
-
-var queueHistory = [
-  { service: "Tuition Bill", totalWait: "24 mins", started: "Sep 20, 2026 - 2:00 PM", ended: "Sep 20, 2026 - 2:35 PM" }
-];
-
-var notifications = [
-  { title: "Queue ready", msg: "Your spot for Academic Advising is now ready.", read: false },
-  { title: "Queue update", msg: "The line for Financial Aid is moving faster. Wait adjusted to 15 mins.", read: false },
-  { title: "Queue canceled", msg: "Your spot for IT Student Helpdesk was successfully canceled.", read: true }
-];
+var currentQueues = [];
+var canceledQueues = [];
+var queueHistory = [];
+var notifications = [];
 
 var currentTab = "current";
-var selectedQueueIndex = -1;
 var selectedNotifIndex = -1;
+
+async function loadAllBackendData() {
+  await Promise.all([
+    fetchActiveQueue(),
+    fetchHistoryData(),
+    fetchNotificationData()
+  ]);
+  renderQueues();
+  updateBadge();
+}
+
+async function fetchActiveQueue() {
+  try {
+    const res = await fetch(`${API_BASE}/queue/user/${CURRENT_USER_ID}`);
+    const data = await res.json();
+    currentQueues = [];
+    if (data.active) {
+      currentQueues.push({
+        ticket: data.ticket,
+        service: data.service,
+        wait: `${data.estimatedWaitMinutes} mins`,
+        position: data.position,
+        date: "Today"
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching active queue:", err);
+  }
+}
+
+async function fetchHistoryData() {
+  try {
+    const res = await fetch(`${API_BASE}/history/${CURRENT_USER_ID}`);
+    const data = await res.json();
+    canceledQueues = [];
+    queueHistory = [];
+
+    data.forEach(item => {
+      if (item.status === "Cancelled") {
+        canceledQueues.push({
+          ticket: item.ticket,
+          service: item.service,
+          started: item.date,
+          canceled: "Cancelled"
+        });
+      } else {
+        queueHistory.push({
+          ticket: item.ticket,
+          service: item.service,
+          totalWait: "Completed",
+          started: item.date,
+          ended: item.date
+        });
+      }
+    });
+  } catch (err) {
+    console.error("Error loading history:", err);
+  }
+}
+
+async function fetchNotificationData() {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/${CURRENT_USER_ID}`);
+    const data = await res.json();
+    notifications = data.map(n => ({
+      id: n.id,
+      title: n.title,
+      msg: n.text,
+      read: false
+    }));
+  } catch (err) {
+    console.error("Error loading notifications:", err);
+  }
+}
 
 function showPage(pageName) {
   document.getElementById("page-dashboard").classList.add("hide");
@@ -67,25 +130,26 @@ function renderQueues() {
 
   if (currentTab === "current") {
     if (currentQueues.length === 0) {
-      list.innerHTML = "<div class='empty-box'>No current queues.</div>";
+      list.innerHTML = `
+        <div class='empty-box'>
+          <p style="margin-bottom: 12px;">You are not currently in any queue.</p>
+          <button class="btn btn-red" onclick="joinAcademicAdvisingQueue()">Join Academic Advising Line</button>
+        </div>`;
       return;
     }
 
     for (var i = 0; i < currentQueues.length; i++) {
       var item = currentQueues[i];
-      var posNumber = i + 1;
-
       list.innerHTML += 
-        "<div class='card clickable' onclick='openQueueModal(" + i + ")'>" +
+        "<div class='card clickable' onclick='openQueueModal()'>" +
           "<div>" +
-            "<div class='card-title'>" + item.service + "</div>" +
+            "<div class='card-title'>" + item.service + " (" + item.ticket + ")</div>" +
             "<div class='card-details'>" +
-              "<span>Queue Number: <b>#" + posNumber + " of " + currentQueues.length + "</b></span>" +
+              "<span>Position: <b>#" + item.position + "</b></span>" +
               "<span>Est. Wait Time: <b>" + item.wait + "</b></span>" +
-              "<span>Date Started: <b>" + item.date + "</b></span>" +
             "</div>" +
           "</div>" +
-          "<div class='queue-number-box'>#" + posNumber + "</div>" +
+          "<div class='queue-number-box'>#" + item.position + "</div>" +
         "</div>";
     }
   }
@@ -101,10 +165,9 @@ function renderQueues() {
       list.innerHTML += 
         "<div class='card'>" +
           "<div>" +
-            "<div class='card-title'>" + item.service + "</div>" +
+            "<div class='card-title'>" + item.service + " (" + item.ticket + ")</div>" +
             "<div class='card-details'>" +
-              "<span>Date Started: <b>" + item.started + "</b></span>" +
-              "<span>Date Canceled: <b>" + item.canceled + "</b></span>" +
+              "<span>Date: <b>" + item.started + "</b></span>" +
             "</div>" +
           "</div>" +
           "<div class='tag tag-canceled'>Canceled</div>" +
@@ -123,11 +186,9 @@ function renderQueues() {
       list.innerHTML += 
         "<div class='card'>" +
           "<div>" +
-            "<div class='card-title'>" + item.service + "</div>" +
+            "<div class='card-title'>" + item.service + " (" + item.ticket + ")</div>" +
             "<div class='card-details'>" +
-              "<span>Total Wait: <b>" + item.totalWait + "</b></span>" +
-              "<span>Started: <b>" + item.started + "</b></span>" +
-              "<span>Ended: <b>" + item.ended + "</b></span>" +
+              "<span>Date: <b>" + item.started + "</b></span>" +
             "</div>" +
           "</div>" +
           "<div class='tag tag-history'>Completed</div>" +
@@ -136,12 +197,12 @@ function renderQueues() {
   }
 }
 
-function openQueueModal(index) {
-  selectedQueueIndex = index;
-  var queue = currentQueues[index];
+function openQueueModal() {
+  if (currentQueues.length === 0) return;
+  var queue = currentQueues[0];
   document.getElementById("qm-title").innerText = queue.service;
   document.getElementById("qm-text").innerText = 
-    "You are in line for " + queue.service + ". Would you like to continue to wait or cancel your spot?";
+    "You are holding ticket " + queue.ticket + ". Would you like to stay in line or cancel your spot?";
   document.getElementById("queue-modal").classList.remove("hide");
 }
 
@@ -149,27 +210,36 @@ function closeQueueModal() {
   document.getElementById("queue-modal").classList.add("hide");
 }
 
-function cancelSelectedQueue() {
-  if (selectedQueueIndex > -1) {
-    var canceledItem = currentQueues[selectedQueueIndex];
-
-    currentQueues.splice(selectedQueueIndex, 1);
-
-    canceledQueues.unshift({
-      service: canceledItem.service,
-      started: canceledItem.date,
-      canceled: "Just now"
+async function cancelSelectedQueue() {
+  try {
+    const res = await fetch(`${API_BASE}/queue/leave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: CURRENT_USER_ID })
     });
 
-    notifications.unshift({
-      title: "Queue canceled",
-      msg: "Your spot for " + canceledItem.service + " was canceled.",
-      read: false
+    if (res.ok) {
+      closeQueueModal();
+      await loadAllBackendData();
+    }
+  } catch (err) {
+    console.error("Failed to cancel queue:", err);
+  }
+}
+
+async function joinAcademicAdvisingQueue() {
+  try {
+    const res = await fetch(`${API_BASE}/queue/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: CURRENT_USER_ID, serviceId: "s1" })
     });
 
-    closeQueueModal();
-    updateBadge();
-    renderQueues();
+    if (res.ok) {
+      await loadAllBackendData();
+    }
+  } catch (err) {
+    console.error("Failed to join queue:", err);
   }
 }
 
@@ -202,7 +272,6 @@ function renderNotifications() {
 function openNotifModal(index) {
   selectedNotifIndex = index;
   var notif = notifications[index];
-
   notif.read = true;
   updateBadge();
   renderNotifications();
@@ -216,12 +285,15 @@ function closeNotifModal() {
   document.getElementById("notif-modal").classList.add("hide");
 }
 
-function deleteNotif() {
-  if (selectedNotifIndex > -1) {
-    notifications.splice(selectedNotifIndex, 1);
+async function deleteNotif() {
+  try {
+    await fetch(`${API_BASE}/notifications/${CURRENT_USER_ID}`, { method: "DELETE" });
+    notifications = [];
     closeNotifModal();
     updateBadge();
     renderNotifications();
+  } catch (err) {
+    console.error("Failed to delete notifications:", err);
   }
 }
 
@@ -246,11 +318,12 @@ function updateBadge() {
   badge.innerText = count;
   if (count === 0) {
     badge.classList.add("hide");
-  } 
-  else {
+  } else {
     badge.classList.remove("hide");
   }
 }
 
-renderQueues();
-updateBadge();
+//loadAllBackendData();
+document.addEventListener("DOMContentLoaded", () => {
+  loadAllBackendData();
+});
