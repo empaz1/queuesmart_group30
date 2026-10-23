@@ -54,17 +54,6 @@
             </div>
         </section>
     </main>
-    <script>
-        const loginView = document.getElementById("login-view");
-        const registerView = document.getElementById("register-view");
-
-        document.querySelectorAll("[data-view]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const showRegister = button.dataset.view === "register";
-                loginView.hidden = showRegister;
-                registerView.hidden = !showRegister;
-            });
-        });
-    </script>
+    <script src="login_backend.js"></script>
 </body>
 </html>
