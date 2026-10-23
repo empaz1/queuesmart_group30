@@ -9,19 +9,19 @@ router.get("/", function(req, res){
 
 function validation(name, description, duration, priority) {
     if (!name || duration == undefined || !priority) {
-        return res.status(400).json({ error: "Missing required fields" });
+        return "Missing required fields";
     }
 
     if(typeof duration !== 'number' || !Number.isInteger(duration) || duration <= 0) {
-        return res.status(400).json({ error: "Duration must be a positive integer" });
+        return "Duration must be a positive integer";
     }
 
     if(!["High", "Medium", "Low"].includes(priority)) {
-        return res.status(400).json({ error: "Priority must be 'Low', 'Medium', or 'High'" });
+        return "Priority must be 'Low', 'Medium', or 'High'";
     }
 
     if(typeof name !== 'string' || name.trim().length === 0 || name.length > 100){
-        return res.status(400).json({ error: "Service name cannot exceed 100 characters and cannot be empty" });
+        return "Service name cannot exceed 100 characters, cannot be empty, and must be a string";
     }
 
     return null;
@@ -31,7 +31,7 @@ router.post("/", function(req, res){
     
     const validationError = validation(name, description, duration, priority);
     if (validationError) {
-        return res.status(400).json(validationError);
+        return res.status(400).json({error: validationError});
     }
 
     const idcheck = services.length > 0
