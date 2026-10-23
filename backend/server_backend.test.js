@@ -1,9 +1,9 @@
 const request = require('supertest');
-const app = require('./server_backend');
+const app = require('./server');
 
 beforeEach(() => {
-  if (typeof app._resetState === 'function') {
-    app._resetState();
+  if (typeof app.resetState === 'function') {
+    app.resetState();
   }
 });
 
@@ -32,6 +32,13 @@ describe('Authentication Module Validation & Logic', () => {
     expect(res.body.userId).toBeDefined();
   });
 
+  test('POST /api/auth/register rejects duplicate username', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'jsmith', password: 'password123' });
+    expect(res.statusCode).toBe(409);
+  });
+
   test('POST /api/auth/login succeeds with valid credentials', async () => {
     const res = await request(app)
       .post('/api/auth/login')
@@ -40,11 +47,44 @@ describe('Authentication Module Validation & Logic', () => {
     expect(res.body.role).toBe('User');
   });
 
-  test('POST /api/auth/login rejects incorrect password', async () => {
-    const res = await request(app)
+  test('POST /api/auth/login rejects incorrect password or missing fields', async () => {
+    const badPass = await request(app)
       .post('/api/auth/login')
       .send({ username: 'jsmith', password: 'wrong' });
-    expect(res.statusCode).toBe(401);
+    expect(badPass.statusCode).toBe(401);
+
+    const noPass = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'jsmith' });
+    expect(noPass.statusCode).toBe(400);
+  });
+});
+
+describe('Service Management Module', () => {
+  test('GET /api/services returns all available services', async () => {
+    const res = await request(app).get('/api/services');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('POST /api/services adds a valid service', async () => {
+    const res = await request(app)
+      .post('/api/services')
+      .send({ name: 'Testing Center', description: 'Exam proctoring', durationMinutes: 10, priorityLevel: 1 });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.id).toBeDefined();
+  });
+
+  test('POST /api/services rejects invalid inputs', async () => {
+    const badName = await request(app)
+      .post('/api/services')
+      .send({ name: 'T', durationMinutes: 10 });
+    expect(badName.statusCode).toBe(400);
+
+    const badDuration = await request(app)
+      .post('/api/services')
+      .send({ name: 'Valid Name', durationMinutes: -5 });
+    expect(badDuration.statusCode).toBe(400);
   });
 });
 
@@ -58,6 +98,12 @@ describe('Queue Management, Wait Time & State Changes', () => {
     expect(res.body.estimatedWaitMinutes).toBe(6);
   });
 
+  test('GET /api/queue/user/:userId handles user not in queue', async () => {
+    const res = await request(app).get('/api/queue/user/nonexistent');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.active).toBe(false);
+  });
+
   test('POST /api/queue/leave removes user and updates history', async () => {
     const leaveRes = await request(app).post('/api/queue/leave').send({ userId: 'u1' });
     expect(leaveRes.statusCode).toBe(200);
@@ -67,6 +113,14 @@ describe('Queue Management, Wait Time & State Changes', () => {
 
     const histRes = await request(app).get('/api/history/u1');
     expect(histRes.body[0].status).toBe('Cancelled');
+  });
+
+  test('POST /api/queue/leave rejects missing userId or non-existent ticket', async () => {
+    const noUser = await request(app).post('/api/queue/leave').send({});
+    expect(noUser.statusCode).toBe(400);
+
+    const notFound = await request(app).post('/api/queue/leave').send({ userId: 'ghost' });
+    expect(notFound.statusCode).toBe(404);
   });
 
   test('POST /api/queue/join creates ticket and generates notification', async () => {
@@ -83,11 +137,27 @@ describe('Queue Management, Wait Time & State Changes', () => {
     expect(notifRes.body[0].title).toBe('Joined Queue');
   });
 
-  test('POST /api/queue/join rejects duplicate entry', async () => {
-    const joinRes = await request(app)
-      .post('/api/queue/join')
-      .send({ userId: 'u1', serviceId: 's1' });
-    expect(joinRes.statusCode).toBe(400);
+  test('POST /api/queue/join rejects invalid parameters or duplicate ticket', async () => {
+    const missing = await request(app).post('/api/queue/join').send({ userId: 'u1' });
+    expect(missing.statusCode).toBe(400);
+
+    const badService = await request(app).post('/api/queue/join').send({ userId: 'u999', serviceId: 's999' });
+    expect(badService.statusCode).toBe(404);
+
+    const duplicate = await request(app).post('/api/queue/join').send({ userId: 'u1', serviceId: 's1' });
+    expect(duplicate.statusCode).toBe(400);
+  });
+
+  test('POST /api/queue/delay shifts user position or returns 404', async () => {
+    const okRes = await request(app)
+      .post('/api/queue/delay')
+      .send({ userId: 'u1', additionalMinutes: 5 });
+    expect(okRes.statusCode).toBe(200);
+
+    const notFound = await request(app)
+      .post('/api/queue/delay')
+      .send({ userId: 'unknown_user', additionalMinutes: 5 });
+    expect(notFound.statusCode).toBe(404);
   });
 });
 
