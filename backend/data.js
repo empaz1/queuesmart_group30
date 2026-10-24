@@ -24,4 +24,4 @@ const queues = [
     }
 ];
 
-module.exports = { services, queues };
+module.exports = { users, services, queues };
