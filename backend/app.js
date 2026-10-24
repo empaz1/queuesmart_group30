@@ -14,4 +14,9 @@ app.use("/api/services", serviceManagementRouter);
 const queueManagerRouter = require('./queues_backend');
 app.use("/api/queues", queueManagerRouter);
 
+// Join Queue and Queue Status
+const joinQueueRouter = require('./join_queue_backend');
+app.use('/api/join-queue', joinQueueRouter);
+
 module.exports = app;
+
