@@ -1,3 +1,8 @@
+const users = [
+    { id: 1, email: "admin@example.com", username: "admin@example.com", password: "adminpassword", role: "Administrator"},
+    { id: 2, email: "jsmith@example.com", username: "jsmith@example.com", "password123", role: "User" }
+   
+];
 const services = [
     {
         id: 1,
