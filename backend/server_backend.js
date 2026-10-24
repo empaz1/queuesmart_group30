@@ -239,7 +239,7 @@ app.resetState = () => {
 };
 app._resetState = app.resetState;
 
-if (process.env.NODE_ENV !== 'test') {
+if (require.main === module && process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`QueueSmart API running on port ${PORT}`));
 }

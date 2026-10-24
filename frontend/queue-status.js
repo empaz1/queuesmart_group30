@@ -1,3 +1,4 @@
+
 var emptyState = document.getElementById("empty-state");
 var statusCard = document.getElementById("status-card");
 var serviceName = document.getElementById("service-name");
@@ -7,82 +8,135 @@ var badge = document.getElementById("status-badge");
 var updatesList = document.getElementById("updates");
 var leaveBtn = document.getElementById("leave-btn");
 
-var queue = getSavedQueue();
-var service = null;
+var saved = getSavedQueue();
+var lastPosition = 0;
 var timer = null;
+var loading = false;
 
 function addUpdate(text) {
   var li = document.createElement("li");
-  var time = new Date().toLocaleTimeString();
-  li.textContent = time + " - " + text;
-  updatesList.insertBefore(li, updatesList.firstChild); // newest on top
+  li.textContent = new Date().toLocaleTimeString() + " - " + text;
+  updatesList.insertBefore(li, updatesList.firstChild);
 }
 
-function getStatus(position) {
-  if (position <= 0) {
-    return "Served";
-  } else if (position === 1) {
-    return "Almost Ready";
-  }
-  return "Waiting";
+function showEmpty() {
+  emptyState.style.display = "block";
+  statusCard.style.display = "none";
 }
 
-function render() {
-  serviceName.textContent = service.name;
-  positionText.textContent = queue.position > 0 ? "#" + queue.position : "-";
+function render(data, status) {
+  emptyState.style.display = "none";
+  statusCard.style.display = "block";
 
-  var status = getStatus(queue.position);
+  serviceName.textContent = data.service;
+  positionText.textContent = data.position > 0 ? "#" + data.position : "-";
+  waitText.textContent = data.waitTime + " minutes";
+
   badge.textContent = status;
   badge.className = "badge";
+
   if (status === "Almost Ready") {
     badge.classList.add("almost");
   } else if (status === "Served") {
     badge.classList.add("served");
   }
-
-  if (queue.position > 0) {
-    waitText.textContent = queue.position * service.minutesPerPerson + " minutes";
-  } else {
-    waitText.textContent = "0 minutes";
-  }
 }
 
-// every few seconds someone ahead gets served
-function tick() {
-  queue.position = queue.position - 1;
-  saveQueue(queue);
-  render();
-
-  if (queue.position === 1) {
-    addUpdate("You're next! Please get ready.");
-  } else if (queue.position <= 0) {
-    addUpdate("You've been served. Thank you!");
-    leaveBtn.textContent = "Done";
-    clearInterval(timer);
-  } else {
-    addUpdate("Someone was served. You're now #" + queue.position + ".");
+function loadStatus() {
+  if (loading || saved === null) {
+    return;
   }
+
+  loading = true;
+
+  var url = "/api/join-queue/" + saved.serviceId + "/users/" + saved.userId + "/status";
+
+  fetch(url)
+    .then(function (res) {
+      if (!res.ok) {
+        throw new Error("Could not load status");
+      }
+      return res.json();
+    })
+    .then(function (data) {
+      if (data.position === 0) {
+        clearQueue();
+        clearInterval(timer);
+
+        if (data.status === "Served") {
+          addUpdate("You've been served. Thank you!");
+          render(data, "Served");
+        } else {
+          addUpdate("You are no longer in the queue.");
+          render(data, "Not in Queue");
+        }
+
+        leaveBtn.textContent = "Done";
+        return;
+      }
+
+      if (data.position !== lastPosition) {
+        if (lastPosition === 0) {
+          addUpdate("You joined the " + data.service + " queue. Position #" + data.position + ".");
+        } else if (data.position === 1) {
+          addUpdate("You're next! Please get ready.");
+        } else {
+          addUpdate("Your position changed to #" + data.position + ".");
+        }
+      }
+
+      render(data, data.status);
+      lastPosition = data.position;
+    })
+    .catch(function () {
+      addUpdate("Could not load your queue status. Please try again.");
+      clearInterval(timer);
+    })
+    .finally(function () {
+      loading = false;
+    });
+}
+
+function goBack() {
+  clearQueue();
+  window.location.href = "join-queue.html";
 }
 
 leaveBtn.addEventListener("click", function () {
+  if (leaveBtn.textContent === "Done") {
+    goBack();
+    return;
+  }
+
+  if (saved === null) {
+    return;
+  }
+
   clearInterval(timer);
-  clearQueue();
-  window.location.href = "join-queue.html";
+  leaveBtn.disabled = true;
+
+  fetch("/api/join-queue/" + saved.serviceId + "/users/" + saved.userId, {
+    method: "DELETE"
+  })
+    .then(function (res) {
+      if (res.ok || res.status === 404) {
+        goBack();
+      } else {
+        addUpdate("Could not leave the queue. Try again.");
+        leaveBtn.disabled = false;
+        timer = setInterval(loadStatus, 3000);
+      }
+    })
+    .catch(function () {
+      addUpdate("Could not reach the server. Try again.");
+      leaveBtn.disabled = false;
+      timer = setInterval(loadStatus, 3000);
+    });
 });
 
-// page setup
-if (queue === null) {
-  emptyState.style.display = "block";
-  statusCard.style.display = "none";
+if (saved === null) {
+  showEmpty();
 } else {
-  service = findService(queue.serviceId);
-  emptyState.style.display = "none";
-  statusCard.style.display = "block";
-
-  render();
-  addUpdate("You joined the " + service.name + " queue.");
-
-  if (queue.position > 0) {
-    timer = setInterval(tick, 4000);
-  }
+  loadStatus();
+  timer = setInterval(loadStatus, 3000);
 }

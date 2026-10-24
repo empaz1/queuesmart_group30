@@ -11,13 +11,19 @@ app.get("/", function(req, res) {
 const loginRouter = require('./login_backend');
 app.use("/api/auth", loginRouter);
 
-const adminRouter = require('./admin_backend');
-app.use("/api/admin", adminRouter);
-
 const serviceManagementRouter = require('./services_backend');
 app.use("/api/services", serviceManagementRouter);
 
 const queueManagerRouter = require('./queues_backend');
 app.use("/api/queues", queueManagerRouter);
 
+// Join Queue and Queue Status
+const joinQueueRouter = require('./join_queue_backend');
+app.use('/api/join-queue', joinQueueRouter);
+
+// Login and Registration
+const loginApp = require('./server_backend');
+app.use(loginApp);
+
 module.exports = app;
+

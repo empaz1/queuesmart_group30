@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {queues} = require('./data');
+const {queues, servedUsers} = require('./data'); 
 
 router.get("/", function(req, res){
     res.status(200).json(queues);
@@ -57,6 +57,7 @@ router.post("/:serviceId/serve", function(req, res){
     }
 
     const served = queue.users.shift();
+    servedUsers.push({ serviceId: queue.serviceId, id: served.id }); 
     return res.status(200).json({ message: "User succewssfully served", user: served });
 })
 
@@ -88,8 +89,5 @@ router.put("/:serviceId/reorder", function(req, res){
     return res.status(200).json({message: "Queue sucessfully reordered", queue: queue});
 
 })
-
-
-
 
 module.exports = router;
