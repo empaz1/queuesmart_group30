@@ -11,7 +11,7 @@ app.get("/", function(req, res) {
 const loginRouter = require('./login_backend');
 app.use('/api/auth', loginRouter);
 
-const loginRouter = require('./admin_backend');
+const adminRouter = require('./admin_backend');
 app.use('/api/admin', adminRouter);
 
 const serviceManagementRouter = require('./services_backend');
