@@ -10,6 +10,13 @@ function validId(value) {
     return id;
 }
 
+function validUserId(value) {
+    if (typeof value === 'string' && /^u[1-9]\d*$/.test(value)) {
+        return value;
+    }
+    return validId(value);
+}
+
 function findQueue(serviceId) {
     return queues.find(q => q.serviceId === serviceId);
 }
@@ -40,7 +47,7 @@ function getStatus(position, served) {
 
 // join a queue
 router.post('/', function(req, res) {
-    const userId = validId(req.body.userId);
+    const userId = validUserId(req.body.userId);
     const serviceId = validId(req.body.serviceId);
     const name = req.body.name;
 
@@ -66,6 +73,10 @@ router.post('/', function(req, res) {
         return res.status(400).json({ error: "User is already in this queue" });
     }
 
+    if (queues.some(q => q.users.some(user => user.id === userId))) {
+        return res.status(400).json({ error: "User is already in another queue" });
+    }
+
     queue.users.push({ id: userId, name: name.trim() });
 
     // joining again clears an old served record
@@ -87,7 +98,7 @@ router.post('/', function(req, res) {
 // leave a queue
 router.delete('/:serviceId/users/:userId', function(req, res) {
     const serviceId = validId(req.params.serviceId);
-    const userId = validId(req.params.userId);
+    const userId = validUserId(req.params.userId);
 
     if (!serviceId || !userId) {
         return res.status(400).json({ error: "Invalid ID" });
@@ -110,7 +121,7 @@ router.delete('/:serviceId/users/:userId', function(req, res) {
 // position, wait time and status
 router.get('/:serviceId/users/:userId/status', function(req, res) {
     const serviceId = validId(req.params.serviceId);
-    const userId = validId(req.params.userId);
+    const userId = validUserId(req.params.userId);
 
     if (!serviceId || !userId) {
         return res.status(400).json({ error: "Invalid ID" });
@@ -132,4 +143,3 @@ router.get('/:serviceId/users/:userId/status', function(req, res) {
 });
 
 module.exports = router;
-

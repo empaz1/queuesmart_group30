@@ -16,7 +16,7 @@ function getUserId() {
     id = Math.floor(Math.random() * 90000) + 100;
     localStorage.setItem("userId", id);
   }
-  return Number(id);
+  return id.startsWith("u") ? id : Number(id);
 }
 
 function getWaiting(serviceId) {

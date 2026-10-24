@@ -18,5 +18,9 @@ app.use("/api/queues", queueManagerRouter);
 const joinQueueRouter = require('./join_queue_backend');
 app.use('/api/join-queue', joinQueueRouter);
 
+// Login and Registration
+const loginApp = require('./server_backend');
+app.use(loginApp);
+
 module.exports = app;
 
