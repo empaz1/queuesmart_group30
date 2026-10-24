@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('./server');
+const app = require('./server_backend');
 
 beforeEach(() => {
   if (typeof app.resetState === 'function') {
