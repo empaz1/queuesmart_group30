@@ -9,7 +9,7 @@ app.get("/", function(req, res) {
 });
 
 const loginRouter = require('./login_backend');
-app.use("/api/auth", loginRouter):
+app.use("/api/auth", loginRouter);
 
 const serviceManagementRouter = require('./services_backend');
 app.use("/api/services", serviceManagementRouter);
