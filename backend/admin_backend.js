@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyAdmin } = require("./middleware");
+const { verifyAdmin } = require("./user_roles");
 const { users, services, queues } = require("./data");
 
 router.get('/dashboard', verifyAdmin, (req, res) => {
