@@ -1,4 +1,9 @@
 
+const users = [
+    { id: 1, email: "admin@example.com", username: "admin@example.com", password: "adminpassword", role: "Administrator"},
+    { id: 2, email: "jsmith@example.com", username: "jsmith@example.com", password: "password123", role: "User" }
+   
+];
 const services = [
     {
         id: 1,
@@ -43,4 +48,4 @@ const queues = [
 
 const servedUsers = [];
 
-module.exports = { services, queues, servedUsers };
+module.exports = { users, services, queues, servedUsers };

@@ -33,25 +33,16 @@ let notifications = [
 
 let ticketCounter = 15;
 
-function validateStringField(value, fieldName, minLen = 1, maxLen = 50) {
-  if (value === undefined || value === null || typeof value !== 'string') {
-    return `${fieldName} must be a valid string.`;
-  }
-  const trimmed = value.trim();
-  if (trimmed.length < minLen || trimmed.length > maxLen) {
-    return `${fieldName} must be between ${minLen} and ${maxLen} characters.`;
-  }
-  return null;
-}
-
 app.post('/api/auth/register', (req, res) => {
   const { username, password, role } = req.body;
-  
-  const userErr = validateStringField(username, 'Username', 3, 30);
-  if (userErr) return res.status(400).json({ error: userErr });
 
-  const passErr = validateStringField(password, 'Password', 6, 50);
-  if (passErr) return res.status(400).json({ error: passErr });
+  if (!username || typeof username !== 'string' || username.trim().length < 3 || username.trim().length > 30) {
+    return res.status(400).json({ error: 'Username must be between 3 and 30 characters.' });
+  }
+
+  if (!password || typeof password !== 'string' || password.length < 6 || password.length > 50) {
+    return res.status(400).json({ error: 'Password must be between 6 and 50 characters.' });
+  }
 
   const assignedRole = role === 'Administrator' ? 'Administrator' : 'User';
 
@@ -84,9 +75,10 @@ app.get('/api/services', (req, res) => {
 
 app.post('/api/services', (req, res) => {
   const { name, description, durationMinutes, priorityLevel } = req.body;
-  
-  const nameErr = validateStringField(name, 'Service name', 2, 50);
-  if (nameErr) return res.status(400).json({ error: nameErr });
+
+  if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 50) {
+    return res.status(400).json({ error: 'Service name must be between 2 and 50 characters.' });
+  }
 
   if (typeof durationMinutes !== 'number' || durationMinutes <= 0) {
     return res.status(400).json({ error: 'durationMinutes must be a positive number.' });
@@ -100,7 +92,7 @@ app.post('/api/services', (req, res) => {
     priorityLevel: Number.isInteger(priorityLevel) ? priorityLevel : 1
   };
   services.push(newService);
-  res.status(201).json(newService);
+  return res.status(201).json(newService);
 });
 
 app.get('/api/queue/user/:userId', (req, res) => {
@@ -113,7 +105,7 @@ app.get('/api/queue/user/:userId', (req, res) => {
 
   const userTicket = queue[entryIndex];
   const service = services.find(s => s.id === userTicket.serviceId) || { durationMinutes: 3, name: 'General Service' };
-  
+
   const position = entryIndex + 1;
   const estimatedWaitMinutes = position * service.durationMinutes;
 
@@ -221,19 +213,19 @@ app.post('/api/queue/delay', (req, res) => {
 app.get('/api/history/:userId', (req, res) => {
   const { userId } = req.params;
   const userHistory = history.filter(h => h.userId === userId);
-  res.status(200).json(userHistory);
+  return res.status(200).json(userHistory);
 });
 
 app.get('/api/notifications/:userId', (req, res) => {
   const { userId } = req.params;
   const userNotifs = notifications.filter(n => n.userId === userId);
-  res.status(200).json(userNotifs);
+  return res.status(200).json(userNotifs);
 });
 
 app.delete('/api/notifications/:userId', (req, res) => {
   const { userId } = req.params;
   notifications = notifications.filter(n => n.userId !== userId);
-  res.status(200).json({ message: 'Notifications cleared' });
+  return res.status(200).json({ message: 'Notifications cleared' });
 });
 
 app.resetState = () => {
@@ -245,6 +237,7 @@ app.resetState = () => {
     { id: 1, userId: 'u1', title: 'Almost Your Turn', text: 'You are #2 in line. Please head to the counter area.', timestamp: new Date() }
   ];
 };
+app._resetState = app.resetState;
 
 if (require.main === module && process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
