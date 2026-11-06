@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-
+const {db} = require('./server_db');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -152,6 +152,11 @@ app.post('/api/queue/join', (req, res) => {
     text: `You hold ticket ${ticketNumber}. Initial estimated wait is ${waitTime} mins.`,
     timestamp: new Date()
   });
+  
+  db.prepare(`
+    INSERT INTO NotificationHistory (userId, message, status)
+    VALUES (?, ?, 'sent')
+  `).run(userId, `You hold ticket ${ticketNumber}. Initial estimated wait is ${waitTime} mins.`);
 
   return res.status(201).json({
     message: 'Joined queue successfully',
@@ -216,16 +221,154 @@ app.get('/api/history/:userId', (req, res) => {
   return res.status(200).json(userHistory);
 });
 
+app.get('/api/profile/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const stmt = db.prepare('SELECT userId, fullName, email, phone, preferences FROM UserProfile WHERE userId = ?');
+    const profile = stmt.get(userId);
+
+    if (!profile) {
+      return res.status(404).json({ error: 'User profile not found.' });
+    }
+
+    profile.preferences = JSON.parse(profile.preferences || '{}');
+    return res.status(200).json(profile);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error retrieving profile.' });
+  }
+});
+
+app.post('/api/profile', (req, res) => {
+  try {
+    const { userId, fullName, email, phone, preferences } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required.' });
+    }
+    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2 || fullName.trim().length > 100) {
+      return res.status(400).json({ error: 'Full name must be between 2 and 100 characters.' });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ error: 'A valid email is required.' });
+    }
+
+    const prefString = preferences ? JSON.stringify(preferences) : '{"emailAlerts":true,"smsAlerts":false}';
+
+    const stmt = db.prepare(`
+      INSERT INTO UserProfile (userId, fullName, email, phone, preferences)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(userId, fullName.trim(), email.trim(), phone || null, prefString);
+
+    return res.status(201).json({ message: 'Profile created successfully.' });
+  } catch (err) {
+    if (err.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Email or UserProfile already exists.' });
+    }
+    return res.status(500).json({ error: 'Failed to create profile.' });
+  }
+});
+
+app.put('/api/profile/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { fullName, phone, preferences } = req.body;
+
+    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2 || fullName.trim().length > 100) {
+      return res.status(400).json({ error: 'Full name must be between 2 and 100 characters.' });
+    }
+    if (phone && phone.length > 20) {
+      return res.status(400).json({ error: 'Phone cannot exceed 20 characters.' });
+    }
+
+    const prefString = preferences ? JSON.stringify(preferences) : '{"emailAlerts":true,"smsAlerts":false}';
+
+    const stmt = db.prepare(`
+      UPDATE UserProfile
+      SET fullName = ?, phone = ?, preferences = ?
+      WHERE userId = ?
+    `);
+    const result = stmt.run(fullName.trim(), phone || null, prefString, userId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User profile not found.' });
+    }
+
+    return res.status(200).json({ message: 'Profile updated successfully.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error updating profile.' });
+  }
+});
+
 app.get('/api/notifications/:userId', (req, res) => {
-  const { userId } = req.params;
-  const userNotifs = notifications.filter(n => n.userId === userId);
-  return res.status(200).json(userNotifs);
+  try {
+    const { userId } = req.params;
+    const stmt = db.prepare(`
+      SELECT notificationId, userId, message, timestamp, status
+      FROM NotificationHistory
+      WHERE userId = ?
+      ORDER BY timestamp DESC
+    `);
+    const list = stmt.all(userId);
+    return res.status(200).json(list);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error retrieving notifications.' });
+  }
+});
+
+app.post('/api/notifications', (req, res) => {
+  try {
+    const { userId, message } = req.body;
+
+    if (!userId || !message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Valid userId and non-empty message are required.' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO NotificationHistory (userId, message, status)
+      VALUES (?, ?, 'sent')
+    `);
+    const result = stmt.run(userId, message.trim());
+
+    return res.status(201).json({
+      notificationId: result.lastInsertRowid,
+      message: 'Notification saved successfully.'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error saving notification.' });
+  }
+});
+
+app.patch('/api/notifications/:notificationId/read', (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const stmt = db.prepare(`
+      UPDATE NotificationHistory
+      SET status = 'viewed'
+      WHERE notificationId = ?
+    `);
+    const result = stmt.run(notificationId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Notification not found.' });
+    }
+
+    return res.status(200).json({ message: 'Notification marked as viewed.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error updating notification.' });
+  }
 });
 
 app.delete('/api/notifications/:userId', (req, res) => {
-  const { userId } = req.params;
-  notifications = notifications.filter(n => n.userId !== userId);
-  return res.status(200).json({ message: 'Notifications cleared' });
+  try {
+    const { userId } = req.params;
+    const stmt = db.prepare('DELETE FROM NotificationHistory WHERE userId = ?');
+    stmt.run(userId);
+    return res.status(200).json({ message: 'Notifications cleared' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error deleting notifications.' });
+  }
 });
 
 app.resetState = () => {
@@ -239,7 +382,7 @@ app.resetState = () => {
 };
 app._resetState = app.resetState;
 
-if (require.main === module && process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`QueueSmart API running on port ${PORT}`));
 }
