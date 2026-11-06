@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const db = require('./db');
@@ -106,19 +105,27 @@ router.post('/', function(req, res) {
                                     return res.status(500).json({ error: "Database error" });
                                 }
 
-                                const position = result.position;
+                                const storedPosition = result.position;
 
-                                addQueueEntry(queue.queue_id, userId, position, function(err) {
+                                getQueuePosition(queue.queue_id, storedPosition, function(err, count) {
                                     if (err) {
                                         return res.status(500).json({ error: "Database error" });
                                     }
 
-                                    return res.status(201).json({
-                                        message: "Successfully joined!",
-                                        service: service.service_name,
-                                        position: position,
-                                        waitTime: getWaitTime(position, service.expected_duration),
-                                        status: getStatus(position, false)
+                                    const position = count.position + 1;
+
+                                    addQueueEntry(queue.queue_id, userId, storedPosition, function(err) {
+                                        if (err) {
+                                            return res.status(500).json({ error: "Database error" });
+                                        }
+
+                                        return res.status(201).json({
+                                            message: "Successfully joined!",
+                                            service: service.service_name,
+                                            position: position,
+                                            waitTime: getWaitTime(position, service.expected_duration),
+                                            status: getStatus(position, false)
+                                        });
                                     });
                                 });
                             });

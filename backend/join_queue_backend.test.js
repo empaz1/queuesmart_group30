@@ -1,4 +1,3 @@
-
 jest.mock('./db', () => {
     const sqlite3 = require('sqlite3');
     return new sqlite3.Database(':memory:');
@@ -27,6 +26,12 @@ beforeAll(function(done) {
 
         INSERT INTO UserCredentials (user_id, email, password_hash, role)
         VALUES ('2', 'user2@test.com', 'test', 'User');
+
+        INSERT INTO UserCredentials (user_id, email, password_hash, role)
+        VALUES ('3', 'user3@test.com', 'test', 'User');
+
+        INSERT INTO UserCredentials (user_id, email, password_hash, role)
+        VALUES ('4', 'user4@test.com', 'test', 'User');
 
         INSERT INTO Service (service_id, service_name, expected_duration)
         VALUES (2, 'Financial Aid', 8);
@@ -196,4 +201,35 @@ test('user can join again after leaving', async function() {
     expect(res.body.position).toBe(1);
 });
 
+test('new user gets correct position after someone in the middle leaves', async function() {
+    await request(app)
+        .post('/api/join-queue')
+        .send({ userId: 1, name: 'User 1', serviceId: 2 });
+
+    await request(app)
+        .post('/api/join-queue')
+        .send({ userId: 2, name: 'User 2', serviceId: 2 });
+
+    await request(app)
+        .post('/api/join-queue')
+        .send({ userId: 3, name: 'User 3', serviceId: 2 });
+
+    await request(app)
+        .delete('/api/join-queue/2/users/2');
+
+    const joinRes = await request(app)
+        .post('/api/join-queue')
+        .send({ userId: 4, name: 'User 4', serviceId: 2 });
+
+    expect(joinRes.status).toBe(201);
+    expect(joinRes.body.position).toBe(3);
+    expect(joinRes.body.waitTime).toBe(16);
+
+    const statusRes = await request(app)
+        .get('/api/join-queue/2/users/4/status');
+
+    expect(statusRes.status).toBe(200);
+    expect(statusRes.body.position).toBe(3);
+    expect(statusRes.body.waitTime).toBe(16);
+});
 
