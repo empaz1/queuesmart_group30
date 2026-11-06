@@ -1,10 +1,28 @@
 const express = require('express');
 const router = express.Router();
 
-const {services} = require('./data');
+const db = require('./db');
 
 router.get("/", function(req, res){
-    res.json(services);
+    const sql = `
+        SELECT
+                service_id AS id,
+                service_name AS name,
+                description,
+                expected_duration AS duration,
+                CASE priority_level
+                    WHEN 3 THEN 'High'
+                    WHEN 2 THEN 'Medium'
+                    ELSE 'Low'
+                END AS priority
+            FROM Service
+        `;
+        db.all(sql, [], function(err, rows){
+            if (err) {
+                return res.status(500).json({error: "Unable to obtain services"});
+            }
+            return res.status(200).json(rows);
+        })
 });
 
 function validation(name, description, duration, priority) {
@@ -34,27 +52,40 @@ router.post("/", function(req, res){
         return res.status(400).json({error: validationError});
     }
 
-    const idcheck = services.length > 0
-        ? Math.max(...services.map(service => service.id)) + 1
-        : 1;
+    if (description != null && (typeof description !== 'string' || description.length > 500)){
+        return res.status(400).json({error: "Description must be less than 500 characters"});
+    }
 
-    const newService = {
-        id: services.length + 1,
-        name: name.trim(),
-        description: description ?? "",
-        duration,
-        priority
+    const priorityLevel = {
+        High: 3,
+        Medium: 2,
+        Low: 1
     };
-    
-    services.push(newService);
-    res.status(201).json(newService);
+
+    const sql = `
+        INSERT INTO Service
+        (service_name, description, expected_duration, priority_level)
+        VALUES (?, ?, ?, ?)`;
+
+    db.run(sql, [name.trim(), description ?? "", duration, priorityLevel[priority]], function(err){
+        if (err){
+            return res.status(500).json({error: "Unable to add service"});
+        }
+        return res.status(201).json({
+            id: this.lastID,
+            name: name.trim(),
+            description: description ?? "",
+            duration,
+            priority
+        });
+    });
 });
 
 router.put("/:id", function(req, res){
     const s_id = Number(req.params.id);
-    const serv = services.find(s => s.id === s_id);
-    if (!serv) {
-        return res.status(404).json({ error: "Service not found" });
+    
+    if (!Number.isInteger(s_id) || s_id <= 0) {
+        return res.status(400).json({error: "Invalid service ID"});
     }
     
     const { name, description, duration, priority } = req.body;
@@ -64,21 +95,62 @@ router.put("/:id", function(req, res){
     if (error) {
         return res.status(400).json({ error: error });
     }
-    serv.name = name;
-    serv.description = description;
-    serv.duration = duration;
-    serv.priority = priority;
-    res.status(200).json(serv);
+
+    if (description != null && (typeof description !== 'string' || description.length > 500)){
+        return res.status(400).json({error: "Description must be less than 500 characters"});
+    }
+
+    const priorityLevel = {
+        High: 3,
+        Medium: 2,
+        Low: 1
+    };
+
+    const sql = `
+        UPDATE Service
+        SET service_name = ?, description = ?, expected_duration = ?, priority_level = ?
+        WHERE service_id = ?`;
+    
+    db.run(sql, [name.trim(), description ?? "", duration, priorityLevel[priority], s_id], function(err){
+        if (err){
+            return res.status(500).json({error: "Unable to update"});
+        }
+        if (this.changes === 0){
+            return res.status(404).json({error: "Service not found"});
+        }
+        return res.status(200).json({
+            id: s_id,
+            name: name.trim(),
+            description: description ?? "",
+            duration,
+            priority
+        });
+    });
+    
 });
 
 router.delete("/:id", function(req, res){
     const s_id = Number(req.params.id);
-    const index = services.findIndex(s => s.id === s_id);
-    if (index === -1){
-        return res.status(404).json({error : "Service not found"});
+    
+    if (!Number.isInteger(s_id) || s_id <= 0) {
+        return res.status(400).json({error: "Invalid service ID"});
     }
-    services.splice(index, 1);
-    res.status(200).json({message: "Service deleted successfully"});
+
+    const sql = 
+    `DELETE FROM Service WHERE service_id = ?`;
+    
+    db.run(sql, [s_id], function(err){
+        if (err){
+            if(err.code === 'SQLITE_CONSTRAINT'){
+                return res.status(400).json({error: "Cannot delete service with queues"});
+            }
+            return res.status(500).json({error: "Unable to delete service"});
+        }
+        if (this.changes === 0){
+            return res.status(404).json({error: "Service not found"});
+        }
+        return res.status(200).json({message: "Service deleted"});
+    });
 });
 
 module.exports = router;

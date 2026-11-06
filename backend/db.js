@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'queuesmart.db');
+const dbPath = process.env.NODE_ENV === 'test' ? ':memory:' :path.join(__dirname, 'queuesmart.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
