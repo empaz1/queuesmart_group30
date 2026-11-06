@@ -1,6 +1,17 @@
+
 const express = require('express');
 const router = express.Router();
-const { services, queues, servedUsers } = require('./data');
+const db = require('./db');
+
+const {
+    findOpenQueue,
+    addQueueEntry,
+    findUserEntry,
+    getNextPosition,
+    findQueueEntry,
+    getQueuePosition,
+    leaveQueueEntry
+} = require('./queue_entry_db');
 
 function validId(value) {
     const id = Number(value);
@@ -14,25 +25,13 @@ function validUserId(value) {
     if (typeof value === 'string' && /^u[1-9]\d*$/.test(value)) {
         return value;
     }
-    return validId(value);
+
+    const id = validId(value);
+    return id === null ? null : String(id);
 }
 
-function findQueue(serviceId) {
-    return queues.find(q => q.serviceId === serviceId);
-}
-
-// 0 means the user is not in the queue
-function getPosition(queue, userId) {
-    return queue.users.findIndex(user => user.id === userId) + 1;
-}
-
-// only the people ahead of you count
-function getWaitTime(position, service) {
-    return Math.max(0, position - 1) * service.duration;
-}
-
-function wasServed(serviceId, userId) {
-    return servedUsers.some(u => u.serviceId === serviceId && u.id === userId);
+function getWaitTime(position, duration) {
+    return Math.max(0, position - 1) * duration;
 }
 
 function getStatus(position, served) {
@@ -45,7 +44,7 @@ function getStatus(position, served) {
     return "Waiting";
 }
 
-// join a queue
+// Join queue
 router.post('/', function(req, res) {
     const userId = validUserId(req.body.userId);
     const serviceId = validId(req.body.serviceId);
@@ -54,48 +53,84 @@ router.post('/', function(req, res) {
     if (!userId || !serviceId) {
         return res.status(400).json({ error: "Invalid ID" });
     }
+
     if (typeof name !== 'string' || name.trim() === '') {
         return res.status(400).json({ error: "Name is required" });
     }
 
-    const service = services.find(s => s.id === serviceId);
-    if (!service) {
-        return res.status(404).json({ error: "Service not found" });
-    }
+    db.get(
+        'SELECT * FROM Service WHERE service_id = ?',
+        [serviceId],
+        function(err, service) {
+            if (err) {
+                return res.status(500).json({ error: "Database error" });
+            }
+            if (!service) {
+                return res.status(404).json({ error: "Service not found" });
+            }
 
-    let queue = findQueue(serviceId);
-    if (!queue) {
-        queue = { serviceId: serviceId, users: [] };
-        queues.push(queue);
-    }
+            db.get(
+                'SELECT user_id FROM UserCredentials WHERE user_id = ?',
+                [userId],
+                function(err, user) {
+                    if (err) {
+                        return res.status(500).json({ error: "Database error" });
+                    }
+                    if (!user) {
+                        return res.status(404).json({ error: "User not found" });
+                    }
 
-    if (getPosition(queue, userId) > 0) {
-        return res.status(400).json({ error: "User is already in this queue" });
-    }
+                    findOpenQueue(serviceId, function(err, queue) {
+                        if (err) {
+                            return res.status(500).json({ error: "Database error" });
+                        }
+                        if (!queue) {
+                            return res.status(404).json({ error: "Queue not found" });
+                        }
 
-    if (queues.some(q => q.users.some(user => user.id === userId))) {
-        return res.status(400).json({ error: "User is already in another queue" });
-    }
+                        findUserEntry(userId, function(err, entry) {
+                            if (err) {
+                                return res.status(500).json({ error: "Database error" });
+                            }
 
-    queue.users.push({ id: userId, name: name.trim() });
+                            if (entry) {
+                                const message = entry.queue_id === queue.queue_id
+                                    ? "User is already in this queue"
+                                    : "User is already in another queue";
 
-    // joining again clears an old served record
-    const servedIndex = servedUsers.findIndex(u => u.serviceId === serviceId && u.id === userId);
-    if (servedIndex !== -1) {
-        servedUsers.splice(servedIndex, 1);
-    }
+                                return res.status(400).json({ error: message });
+                            }
 
-    const position = getPosition(queue, userId);
-    return res.status(201).json({
-        message: "Successfully joined!",
-        service: service.name,
-        position: position,
-        waitTime: getWaitTime(position, service),
-        status: getStatus(position, false)
-    });
+                            getNextPosition(queue.queue_id, function(err, result) {
+                                if (err) {
+                                    return res.status(500).json({ error: "Database error" });
+                                }
+
+                                const position = result.position;
+
+                                addQueueEntry(queue.queue_id, userId, position, function(err) {
+                                    if (err) {
+                                        return res.status(500).json({ error: "Database error" });
+                                    }
+
+                                    return res.status(201).json({
+                                        message: "Successfully joined!",
+                                        service: service.service_name,
+                                        position: position,
+                                        waitTime: getWaitTime(position, service.expected_duration),
+                                        status: getStatus(position, false)
+                                    });
+                                });
+                            });
+                        });
+                    });
+                }
+            );
+        }
+    );
 });
 
-// leave a queue
+// Leave queue
 router.delete('/:serviceId/users/:userId', function(req, res) {
     const serviceId = validId(req.params.serviceId);
     const userId = validUserId(req.params.userId);
@@ -104,21 +139,34 @@ router.delete('/:serviceId/users/:userId', function(req, res) {
         return res.status(400).json({ error: "Invalid ID" });
     }
 
-    const queue = findQueue(serviceId);
-    if (!queue) {
-        return res.status(404).json({ error: "Queue not found" });
-    }
+    findOpenQueue(serviceId, function(err, queue) {
+        if (err) {
+            return res.status(500).json({ error: "Database error" });
+        }
+        if (!queue) {
+            return res.status(404).json({ error: "Queue not found" });
+        }
 
-    const index = queue.users.findIndex(user => user.id === userId);
-    if (index === -1) {
-        return res.status(404).json({ error: "User is not in this queue" });
-    }
+        findQueueEntry(queue.queue_id, userId, function(err, entry) {
+            if (err) {
+                return res.status(500).json({ error: "Database error" });
+            }
+            if (!entry || entry.status !== 'waiting') {
+                return res.status(404).json({ error: "User is not in this queue" });
+            }
 
-    queue.users.splice(index, 1);
-    return res.status(200).json({ message: "You left the queue." });
+            leaveQueueEntry(queue.queue_id, userId, function(err) {
+                if (err) {
+                    return res.status(500).json({ error: "Database error" });
+                }
+
+                return res.status(200).json({ message: "You left the queue." });
+            });
+        });
+    });
 });
 
-// position, wait time and status
+// Queue status
 router.get('/:serviceId/users/:userId/status', function(req, res) {
     const serviceId = validId(req.params.serviceId);
     const userId = validUserId(req.params.userId);
@@ -127,19 +175,57 @@ router.get('/:serviceId/users/:userId/status', function(req, res) {
         return res.status(400).json({ error: "Invalid ID" });
     }
 
-    const service = services.find(s => s.id === serviceId);
-    const queue = findQueue(serviceId);
-    if (!service || !queue) {
-        return res.status(404).json({ error: "Queue not found" });
-    }
+    db.get(
+        'SELECT * FROM Service WHERE service_id = ?',
+        [serviceId],
+        function(err, service) {
+            if (err) {
+                return res.status(500).json({ error: "Database error" });
+            }
+            if (!service) {
+                return res.status(404).json({ error: "Queue not found" });
+            }
 
-    const position = getPosition(queue, userId);
-    return res.status(200).json({
-        service: service.name,
-        position: position,
-        waitTime: getWaitTime(position, service),
-        status: getStatus(position, wasServed(serviceId, userId))
-    });
+            findOpenQueue(serviceId, function(err, queue) {
+                if (err) {
+                    return res.status(500).json({ error: "Database error" });
+                }
+                if (!queue) {
+                    return res.status(404).json({ error: "Queue not found" });
+                }
+
+                findQueueEntry(queue.queue_id, userId, function(err, entry) {
+                    if (err) {
+                        return res.status(500).json({ error: "Database error" });
+                    }
+
+                    if (!entry || entry.status !== 'waiting') {
+                        return res.status(200).json({
+                            service: service.service_name,
+                            position: 0,
+                            waitTime: 0,
+                            status: getStatus(0, entry && entry.status === 'served')
+                        });
+                    }
+
+                    getQueuePosition(queue.queue_id, entry.position, function(err, result) {
+                        if (err) {
+                            return res.status(500).json({ error: "Database error" });
+                        }
+
+                        const position = result.position;
+
+                        return res.status(200).json({
+                            service: service.service_name,
+                            position: position,
+                            waitTime: getWaitTime(position, service.expected_duration),
+                            status: getStatus(position, false)
+                        });
+                    });
+                });
+            });
+        }
+    );
 });
 
 module.exports = router;
