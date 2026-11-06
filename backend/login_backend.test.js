@@ -21,9 +21,9 @@ afterAll(function(done) {
     db.close(done);
 });
 
-test("POST /register - Successfully creates user", async function() {
+test("POST /api/auth/register - Successfully creates user", async function() {
     const response = await request(app)
-        .post("/register") 
+        .post("/api/auth/register") 
         .send({
             email: "student_e@university.edu",
             password: "securepassword123",
@@ -35,33 +35,33 @@ test("POST /register - Successfully creates user", async function() {
     expect(response.body.message).toBe("Account created.");
 });
 
-test("POST /register - Fails on duplicate email", async function() {
+test("POST /api/auth/register - Fails on duplicate email", async function() {
     const testUser = {
         email: "duplicate@university.edu",
         password: "securepassword123",
         role: "User"
     };
 
-    await request(app).post("/register").send(testUser);
+    await request(app).post("/api/auth/register").send(testUser);
 
     const response = await request(app)
-        .post("/register")
+        .post("/api/auth/register")
         .send(testUser);
   
     expect(response.status).toBe(409);
     expect(response.body.error).toBe("Email already in use");
 });
 
-test("POST /login - Successfully authenticates", async function() {
-    // 1. Register a fresh user into the wiped database
-    await request(app).post("/register").send({
+test("POST /api/auth/login - Successfully authenticates", async function() {
+    
+    await request(app).post("/api/auth/register").send({
         email: "login_test@university.edu",
         password: "securepassword123",
         role: "User"
     });
 
     const response = await request(app)
-        .post("/login")
+        .post("/api/auth/login")
         .send({
             email: "login_test@university.edu",
             password: "securepassword123"
@@ -72,9 +72,9 @@ test("POST /login - Successfully authenticates", async function() {
     expect(response.body.message).toBe("Login successful");
 });
 
-test("POST /login - Fails on incorrect password", async function() {
+test("POST /api/auth/login - Fails on incorrect password", async function() {
     
-    await request(app).post("/register").send({
+    await request(app).post("/api/auth/register").send({
         email: "wrongpass_test@university.edu",
         password: "securepassword123",
         role: "User"
@@ -82,7 +82,7 @@ test("POST /login - Fails on incorrect password", async function() {
 
     
     const response = await request(app)
-        .post("/login")
+        .post("/api/auth/login")
         .send({
             email: "wrongpass_test@university.edu",
             password: "thisisthewrongpassword"

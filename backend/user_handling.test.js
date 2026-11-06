@@ -16,7 +16,7 @@ describe("User Handling, verifyAdmin Tests", () => {
     test("returns 401 when no user id is provided", () => {
         verifyAdmin(req, res, next);
         expect(res.status).toHaveBeenCalledWith(401);
-        expect(res.json).toHaveBeenCalledWith({ error: "Authentication is required" });
+        expect(res.json).toHaveBeenCalledWith({ error: "Authentication required." });
         expect(next).not.toHaveBeenCalled();
     });
 
@@ -24,7 +24,7 @@ describe("User Handling, verifyAdmin Tests", () => {
         req.headers["x-user-id"] = 999999;
         verifyAdmin(req, res, next);
         expect(res.status).toHaveBeenCalledWith(403);
-        expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access" });
+        expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access. If you are Admin, try again." });
         expect(next).not.toHaveBeenCalled();
     });
 
@@ -33,7 +33,7 @@ describe("User Handling, verifyAdmin Tests", () => {
         req.headers["x-user-id"] = regularUser ? regularUser.id : 2;
         verifyAdmin(req, res, next);
         expect(res.status).toHaveBeenCalledWith(403);
-        expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access" });
+        expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access. If you are Admin, try again." });
         expect(next).not.toHaveBeenCalled();
     });
 
