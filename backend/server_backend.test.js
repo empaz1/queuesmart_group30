@@ -1,6 +1,11 @@
 const request = require('supertest');
 const app = require('./server_backend');
+const { db, initDb } = require('./server_db');
 
+beforeAll(() => {
+  initDb();
+  db.prepare(`INSERT OR IGNORE INTO UserCredentials (userId, email, password, role) VALUES ('u1', 'jsmith@uh.edu', 'password123', 'User')`).run();
+});
 beforeEach(() => {
   if (typeof app.resetState === 'function') {
     app.resetState();
@@ -134,7 +139,7 @@ describe('Queue Management, Wait Time & State Changes', () => {
     expect(joinRes.body.ticket).toBeDefined();
 
     const notifRes = await request(app).get('/api/notifications/u1');
-    expect(notifRes.body[0].title).toBe('Joined Queue');
+    expect(notifRes.body[0].message).toMatch(/Joined Queue|You hold ticket/);
   });
 
   test('POST /api/queue/join rejects invalid parameters or duplicate ticket', async () => {
@@ -177,3 +182,98 @@ describe('Notifications & History Endpoints', () => {
     expect(checkRes.body.length).toBe(0);
   });
 });
+
+describe('UserProfile Database Integration', () => {
+  test('POST /api/profile creates a new user profile', async () => {
+    const res = await request(app)
+      .post('/api/profile')
+      .send({
+        userId: 'u1',
+        fullName: 'John Smith',
+        email: 'jsmith@uh.edu',
+        phone: '713-555-0199'
+      });
+    expect(res.statusCode).toBe(201);
+  });
+
+  test('POST /api/profile validates required fields and email formatting', async () => {
+    const badName = await request(app)
+      .post('/api/profile')
+      .send({ userId: 'u1', fullName: 'J', email: 'valid@uh.edu' });
+    expect(badName.statusCode).toBe(400);
+
+    const badEmail = await request(app)
+      .post('/api/profile')
+      .send({ userId: 'u1', fullName: 'John Smith', email: 'notanemail' });
+    expect(badEmail.statusCode).toBe(400);
+  });
+
+  test('GET /api/profile/:userId returns 200 with saved profile data', async () => {
+    const res = await request(app).get('/api/profile/u1');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.fullName).toBe('John Smith');
+    expect(res.body.email).toBe('jsmith@uh.edu');
+  });
+
+  test('GET /api/profile/:userId returns 404 for unknown user', async () => {
+    const res = await request(app).get('/api/profile/nonexistent');
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('PUT /api/profile/:userId updates record in SQLite', async () => {
+    const res = await request(app)
+      .put('/api/profile/u1')
+      .send({ fullName: 'Johnathon Smith', phone: '832-555-9999' });
+    expect(res.statusCode).toBe(200);
+
+    const row = db.prepare('SELECT fullName, phone FROM UserProfile WHERE userId = ?').get('u1');
+    expect(row.fullName).toBe('Johnathon Smith');
+    expect(row.phone).toBe('832-555-9999');
+  });
+
+  test('PUT /api/profile/:userId rejects invalid input lengths', async () => {
+    const res = await request(app)
+      .put('/api/profile/u1')
+      .send({ fullName: 'A' });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe('NotificationHistory Database Integration', () => {
+  let createdNotifId;
+
+  test('POST /api/notifications persists a notification to SQLite', async () => {
+    const res = await request(app)
+      .post('/api/notifications')
+      .send({ userId: 'u1', message: 'Ticket R-14 is ready for service.' });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.notificationId).toBeDefined();
+    createdNotifId = res.body.notificationId;
+
+    const row = db.prepare('SELECT status, message FROM NotificationHistory WHERE notificationId = ?').get(createdNotifId);
+    expect(row.status).toBe('sent');
+  });
+
+  test('POST /api/notifications enforces non-empty message constraint', async () => {
+    const res = await request(app)
+      .post('/api/notifications')
+      .send({ userId: 'u1', message: '   ' });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('GET /api/notifications/:userId returns array of notifications from SQLite', async () => {
+    const res = await request(app).get('/api/notifications/u1');
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  test('PATCH /api/notifications/:id/read updates status to viewed', async () => {
+    const res = await request(app).patch(`/api/notifications/${createdNotifId}/read`);
+    expect(res.statusCode).toBe(200);
+
+    const row = db.prepare('SELECT status FROM NotificationHistory WHERE notificationId = ?').get(createdNotifId);
+    expect(row.status).toBe('viewed');
+  });
+});
+
