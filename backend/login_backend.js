@@ -13,6 +13,14 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: "Email and password are required" });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(identifier)) {
+        return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters long" });
+    }
     try {
         const userId = crypto.randomUUID();
         const saltRounds = 10;
@@ -27,11 +35,21 @@ router.post('/register', async (req, res) => {
                 }
                 return res.status(500).json({ error: "Database error during registration." });
             }
+
+            const insertProfile = `INSERT INTO UserProfile (user_id, full_name, email) VALUES (?, ?, ?)`;
+            const defaultName = req.body.full_name || "New User";
+            db.run(insertProfile, [userId, defaultName, identifier], function(profileErr) {
+                if (profileErr) {
+                }
+
             res.status(201).json({ message: "Account created.", userId: userId, role: assignedRole });
         });
+    });
+
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
+
 });
 
 //login
