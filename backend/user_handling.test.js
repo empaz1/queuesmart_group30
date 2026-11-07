@@ -1,5 +1,9 @@
 const { verifyAdmin} = require("./user_roles");
-const { users } = require("./data");
+const db = require("./db");
+
+jest.mock("./db", () => ({
+    get: jest.fn()
+}));
 
 describe("User Handling, verifyAdmin Tests", () => {
     let req, res, next;
@@ -11,6 +15,7 @@ describe("User Handling, verifyAdmin Tests", () => {
             json: jest.fn()
         };
         next = jest.fn();
+        jest.clearAllMocks();
     });
 
     test("returns 401 when no user id is provided", () => {
@@ -21,7 +26,10 @@ describe("User Handling, verifyAdmin Tests", () => {
     });
 
     test("returns 403 when user id does not exist", () => {
-        req.headers["x-user-id"] = 999999;
+        req.headers["x-user-id"] = "fake-uuid-123";
+
+        db.get.mockImplementation((query, params, callback) => callback(null, undefined));
+
         verifyAdmin(req, res, next);
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access. If you are Admin, try again." });
@@ -29,8 +37,12 @@ describe("User Handling, verifyAdmin Tests", () => {
     });
 
      test("returns 403 when user is not Admin", () => {
-        const regularUser = users.find(u => u.role !== "Administrator");
-        req.headers["x-user-id"] = regularUser ? regularUser.id : 2;
+        req.headers["x-user-id"] = "regular-user-uuid";
+
+        db.get.mockImplementation((query, params, callback) => {
+             callback(null,{user_id: "regular-user-uuid", role: "User" });
+        });
+
         verifyAdmin(req, res, next);
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith({ error: "You do not have Admin access. If you are Admin, try again." });
@@ -38,8 +50,13 @@ describe("User Handling, verifyAdmin Tests", () => {
     });
 
     test("when attaches user when user is Admin", () => {
-        const adminUser = users.find(u => u.role === "Administrator");
-        req.headers["x-user-id"] = adminUser ? adminUser.id : 1;
+        req.headers["x-user-id"] = "admin-user-uuid";
+        const adminUser = { user_id: "admin-user-uuid", role: "Administrator" };
+
+        db.get.mockImplementation((query, params, callback) => {
+             callback(null, adminUser);
+        });
+
         verifyAdmin(req, res, next);
         expect(next).toHaveBeenCalled();
         expect(req.user).toEqual(adminUser);
