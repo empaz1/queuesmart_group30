@@ -1,7 +1,7 @@
 const db = require("./db");
 
 function verifyAdmin(req, res, next) {
-    const userId = req.headers['x-user-id'] || req.body.userId;
+    const userId = req.headers['x-user-id'] || req.body?.userId;
     if (!userId) {
         return res.status(401).json({ error: "Authentication required." });
     }
